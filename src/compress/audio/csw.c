@@ -15,6 +15,8 @@
 #define CSW_BLOCK_SIZE 65536
 #define DELTA_DB 3
 #define DELTA_PHASE 0.1
+#define MAX_DIF_PHASE ((int)(6.5/DELTA_PHASE))
+#define PHASE_OFFSET ((int)(3.2/DELTA_PHASE))
 
 //zaglavlje wav fajla
 struct wav_header{
@@ -71,6 +73,18 @@ bool csw_check(FILE* file){
     free(wav_header);
     return is_csw;
 }
+
+// hash funkcija za semstanje simbola amplitude
+static int csw_get_index_of_symbol_amp(HUFF_SYM simbol, struct simbol_verovatnoca_kod* simb_kod, int duzina){
+    return simbol;
+}
+
+// hash funkcija za smestanje simbola faze
+static int csw_get_index_of_symbol_phase(HUFF_SYM simbol, struct simbol_verovatnoca_kod* simb_kod, int duzina){
+    // postavljen offset zbog negativnih vrednosti
+    return simbol + PHASE_OFFSET;
+}
+
 
 int csw_compress(struct cs_type* cs, FILE* file){
     // kompresovanje podataka iz wav fajla i pravljenje novog compresovanog csw formata
@@ -131,6 +145,9 @@ int csw_compress(struct cs_type* cs, FILE* file){
     HUFF_SYM* data_freq_domain_phase_q = malloc(num_of_ch*CSW_BLOCK_SIZE * (num_of_blocks-1)*sizeof(HUFF_SYM) / 2 + 1) ;
     printf("Pripremam podatke za fft a zatim za huffman-a\n");
     
+
+    HUFF_SYM max_amp_db = 0;
+
     // iteracija po blokovima
     // POSLEDNJI BLOK SE ZA SAD ODSECA
     for(int block_count = 0; block_count < num_of_blocks-1; block_count++){
@@ -163,6 +180,9 @@ int csw_compress(struct cs_type* cs, FILE* file){
             for(int i = 0; i <= CSW_BLOCK_SIZE / 2; i++){
                 double temp = cabsl(data_freq[i + j * CSW_BLOCK_SIZE]);
                 data_freq_domain_amp_q[base + i] =(HUFF_SYM) (20*log10l(temp) / DELTA_DB);
+                if(data_freq_domain_amp_q[base + i] > max_amp_db){
+                    max_amp_db = data_freq_domain_amp_q[base+i];
+                }
             }
             for(int i = 0; i <= CSW_BLOCK_SIZE / 2; i++){
                 data_freq_domain_phase_q[base + i] = (HUFF_SYM)(cargl(data_freq[i + j * CSW_BLOCK_SIZE]) / DELTA_PHASE);
@@ -172,6 +192,7 @@ int csw_compress(struct cs_type* cs, FILE* file){
     free(one_block);
     free(data_time_domain);
     free(data_freq_domain);
+    max_amp_db++;
 
     // Pakovanje podataka za Huffmanovo kodovanje
     symb_arr_amp->arr = data_freq_domain_amp_q;
@@ -179,16 +200,16 @@ int csw_compress(struct cs_type* cs, FILE* file){
     symb_arr_phase->arr = data_freq_domain_phase_q;
     symb_arr_phase->len = num_of_ch * CSW_BLOCK_SIZE * (num_of_blocks - 1)/2+1;
 
-    printf("Pravim huffman-ovo stablo i kodujem\n");
     // Kodovanje amplitude
-    struct huff_tree* tree_amp = huffman_get_tree(symb_arr_amp, cs->max_possible_symbols, NULL, NULL);
+    struct huff_tree* tree_amp = huffman_get_tree(symb_arr_amp, cs->max_possible_symbols, csw_get_index_of_symbol_amp, NULL);
     struct huff_coded_arr* compressed_amp = huffman_code(tree_amp, symb_arr_amp);
     // Oslobadjanje originalnih podataka amplitude
     free(symb_arr_amp->arr);
     free(symb_arr_amp);
 
     // Kodovanje faze
-    struct huff_tree* tree_phase = huffman_get_tree(symb_arr_phase, cs->max_possible_symbols, NULL, NULL);
+    printf("Pravim huffman-ovo stablo i kodujem\n");
+    struct huff_tree* tree_phase = huffman_get_tree(symb_arr_phase, cs->max_possible_symbols, csw_get_index_of_symbol_phase, NULL);
     struct huff_coded_arr* compressed_phase = huffman_code(tree_phase, symb_arr_phase);
     // Oslobadjanje originalnih podataka faze
     free(symb_arr_phase->arr);
@@ -206,8 +227,8 @@ int csw_compress(struct cs_type* cs, FILE* file){
     free(header);
 
     printf("Pravim drugi heder\n"); 
-    header2->code_table_size1 = tree_amp->num_of_leaves * sizeof(struct simbol_verovatnoca_kod);
-    header2->code_table_size2 = tree_phase->num_of_leaves * sizeof(struct simbol_verovatnoca_kod);
+    header2->code_table_size1 = max_amp_db * sizeof(struct simbol_verovatnoca_kod);
+    header2->code_table_size2 = MAX_DIF_PHASE * sizeof(struct simbol_verovatnoca_kod);
     header2->last_end_bit1 = compressed_amp->last_end_bit;
     header2->last_end_bit2 = compressed_phase ->last_end_bit;
     header2->original_size1 = compressed_amp->original_len;
@@ -222,11 +243,13 @@ int csw_compress(struct cs_type* cs, FILE* file){
     free(wav_header);
     // Cuvanje tabele verovatnoca
     printf("Upisujem tabele\n");
-    fwrite(tree_amp->simb_kod, sizeof(struct simbol_verovatnoca_kod), tree_amp->num_of_leaves, compressed_file);
-    fwrite(tree_phase->simb_kod, sizeof(struct simbol_verovatnoca_kod), tree_phase->num_of_leaves, compressed_file);
+    fwrite(tree_amp->simb_kod, sizeof(struct simbol_verovatnoca_kod), max_amp_db, compressed_file);
+    fwrite(tree_phase->simb_kod, sizeof(struct simbol_verovatnoca_kod), MAX_DIF_PHASE, compressed_file);
     // oslobadjanje memorije huff stabala
-    free_tree(tree_amp);
-    free_tree(tree_phase);
+    // !!!
+    // free_tree(tree_amp);
+    // free_tree(tree_phase);
+    // !!!
     // Cuvanje kompresovanih podataka i oslobadjanje memorije istih
     printf("Upisujem podatke\n");
     fwrite(compressed_amp->arr, 1, compressed_amp->len, compressed_file);
@@ -308,20 +331,23 @@ int csw_decompress(struct cs_type* cs, FILE* file){
     fread(coded_arr_phase->arr, 1, coded_arr_phase->len, file);
 
     // Dekodovanje sa Huffman-om
+    struct huff_tree* tree_amp = huffman_get_tree(NULL, header2->code_table_size1 / sizeof(struct simbol_verovatnoca_kod), csw_get_index_of_symbol_amp,verovatnoce_amp);
     printf("Izrada huffman-ovog stabla i dekodovanje\n");
-    struct huff_tree* tree_amp = huffman_get_tree(NULL, header2->code_table_size1 / sizeof(struct simbol_verovatnoca_kod), NULL,verovatnoce_amp);
     struct huff_symb_arr* symb_arr_amp = huffman_decode(tree_amp, coded_arr_amp);
     free(coded_arr_amp->arr);
     free(coded_arr_amp);
-    struct huff_tree* tree_phase = huffman_get_tree(NULL, header2->code_table_size2 / sizeof(struct simbol_verovatnoca_kod), NULL,verovatnoce_phase);
+    printf("Izrada huffman-ovog stabla i dekodovanje faze\n");
+
+    struct huff_tree* tree_phase = huffman_get_tree(NULL, header2->code_table_size2 / sizeof(struct simbol_verovatnoca_kod), csw_get_index_of_symbol_phase,verovatnoce_phase);
     struct huff_symb_arr* symb_arr_phase = huffman_decode(tree_phase, coded_arr_phase);
     free(coded_arr_phase->arr);
     free(coded_arr_phase);
-    
+    printf("Pravljnje fajla za dekompresovane podatke\n");
     // oslobadjanje memorije huff stabala
-    free_tree(tree_phase);
-    free_tree(tree_amp);
-
+    // !!!
+    // free_tree(tree_phase);
+    // free_tree(tree_amp);
+    // !!!
     // Otvaranje novog fajla za dekompresovanu verziju wav
     FILE* decompressed_file = fopen("./decompressed_file.wav", "wb");
     if(decompressed_file == NULL){

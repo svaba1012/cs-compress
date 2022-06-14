@@ -105,10 +105,7 @@ static int huffman_get_index_of_symbol(HUFF_SYM simbol, struct simbol_verovatnoc
 
 // funcija za pravljenje tabele verovatnoca
 static struct simbol_verovatnoca_kod* huffman_calc_verovatnoce(struct huff_symb_arr* symb_arr,int* max_symb, FGET_INDEX_OF_SYMBOL get_index){
-    if(get_index == NULL){
-        // ako korisnike ne prosledi svoju funkciju
-        get_index = huffman_get_index_of_symbol;
-    }
+    
     HUFF_SYM* arr = symb_arr->arr;
     // priprema tabele
     struct simbol_verovatnoca_kod* simb_vero = malloc(sizeof(struct simbol_verovatnoca_kod)* *max_symb);
@@ -140,13 +137,20 @@ static struct simbol_verovatnoca_kod* huffman_calc_verovatnoce(struct huff_symb_
 
 // funkcija za dobijanje stabla
 struct huff_tree* huffman_get_tree(struct huff_symb_arr* symb_arr,int max_symb, FGET_INDEX_OF_SYMBOL get_index, struct simbol_verovatnoca_kod* verovatnoce){
-
+    
+    if(get_index == NULL){
+        // ako korisnike ne prosledi svoju funkciju
+        get_index = huffman_get_index_of_symbol;
+    }
     if(verovatnoce == NULL){
         // ako verovatnoce ne postoje izracunaj
         verovatnoce = huffman_calc_verovatnoce(symb_arr, &max_symb, get_index);
     }
     // napravi stablo
-    return huffman_napravi_stablo(verovatnoce, max_symb);
+    struct huff_tree* tree = huffman_napravi_stablo(verovatnoce, max_symb);
+    tree->get_index = get_index;
+    return tree;
+    
 }
 
 // rekurzivno racunanje koda po inorder obilasku
@@ -181,7 +185,7 @@ struct huff_coded_arr* huffman_code(struct huff_tree* tree, struct huff_symb_arr
     int duzina_niza = symb_arr->len;
     struct cvor_stabla* stablo = tree->root;
     // izracunavanje kodova preko stabla i cuvanje
-    huffman_inorder_save_codes(stablo, 0, -1, tree->simb_kod, tree->num_of_sym, huffman_get_index_of_symbol);
+    huffman_inorder_save_codes(stablo, 0, -1, tree->simb_kod, tree->num_of_sym, tree->get_index);
 
     // prprema niza za kompresovane podatke
     HUFF_CODE_BLOCK* kodovani_niz = malloc(sizeof(HUFF_CODE_BLOCK) * duzina_niza);
@@ -198,7 +202,7 @@ struct huff_coded_arr* huffman_code(struct huff_tree* tree, struct huff_symb_arr
     // iteracija kroz niz
     for(int i = 0; i < duzina_niza; i++){
         // dobijanje ideksa niza
-        int idx = huffman_get_index_of_symbol(niz_simbola[i], tree->simb_kod, tree->num_of_sym);
+        int idx = tree->get_index(niz_simbola[i], tree->simb_kod, tree->num_of_sym);
         struct simbol_verovatnoca_kod kod = tree->simb_kod[idx];
         // kod trenutnog simbola
         int code = kod.code;

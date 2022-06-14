@@ -31,6 +31,7 @@ struct simbol_verovatnoca_kod{
     // duzina koda u bitima
     int code_num_of_bits;
     int code;
+
 };
 
 // struktura stabla
@@ -42,6 +43,8 @@ struct huff_tree{
     struct simbol_verovatnoca_kod* simb_kod;
     // duzina tabele
     int num_of_sym;
+    // funcija pretrage simbola u tabeli
+    FGET_INDEX_OF_SYMBOL get_index;
 };
 
 struct huff_tree* huffman_get_tree(struct huff_symb_arr* symb_arr,int max_symb, FGET_INDEX_OF_SYMBOL get_index, struct simbol_verovatnoca_kod* verovatnoce);

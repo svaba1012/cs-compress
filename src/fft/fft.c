@@ -2,7 +2,7 @@
 #include "math.h"
 
 // fft skinut sa github-a od druga
-
+// --------------------------------------------------
 void dft(double complex *l, double complex *yf, uint64_t N) {
 	for(uint64_t k = 0; k<N; k++) {
 		double complex t = 0;
@@ -170,9 +170,9 @@ void fft2(double complex *l, double complex *yf, uint64_t N) {
 void ifft2(double complex *l, double complex *yf, uint64_t N) {
 	ifft_rec(l, yf, N, 0, 1);
 }
+// ----------------------------------------------------------------------------
 
 // moj iterativni fft3
-
 double complex* fft3(double complex *x, double complex *y, uint64_t N) {
 	
 	// provera da li je broj stepen dvojke
@@ -257,8 +257,8 @@ double complex* ifft3(double complex *x, double complex *y, uint64_t N) {
 			int base1 = j*k;
 			int base2 = j*k +i;
 			for(int s = 0; s < i; s++){
-				b[base1 + s] = (a[base1 + s] + cexp(2*I*PI*s/k) * a[base2 + s]);
-				b[base2 + s] = (a[base1 + s] + cexp(2*I*PI*(s+i)/k) * a[base2 + s]);
+				b[base1 + s] = a[base1 + s] + cexp(2*I*PI*s/k) * a[base2 + s];
+				b[base2 + s] = a[base1 + s] + cexp(2*I*PI*(s+i)/k) * a[base2 + s];
 			}
 		}
 		temp = b;

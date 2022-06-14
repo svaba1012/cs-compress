@@ -173,15 +173,15 @@ void ifft2(double complex *l, double complex *yf, uint64_t N) {
 // ----------------------------------------------------------------------------
 
 // moj iterativni fft3
-double complex* fft3(double complex *x, double complex *y, uint64_t N) {
+
+double complex* fft3(double complex *x, double complex *a, double complex* b, int* c,  uint64_t N) {
 	
 	// provera da li je broj stepen dvojke
 	if(N & (N - 1)){
 		printf("Broj nije stepen dvojke\n");
 		return NULL;
 	}
-	double complex* a = malloc(N * sizeof(double complex));
-	double complex* b = y;
+
 	double complex* temp;
 
 	// obrce bitove
@@ -189,7 +189,6 @@ double complex* fft3(double complex *x, double complex *y, uint64_t N) {
 	//1989, Anne Cathrine Elster School of Electrical Engineering Come11 University Ilhaca, New York 14853 
 	// download link
 	// https://folk.idi.ntnu.no/elster/pubs/elster-bit-rev-1989.pdf
-	int* c = malloc(sizeof(int) * N);
 	c[0] = 0;
 	c[1] = 1;
 	a[1] = x[N/2];
@@ -223,17 +222,15 @@ double complex* fft3(double complex *x, double complex *y, uint64_t N) {
 	return a;
 }
 
-double complex* ifft3(double complex *x, double complex *y, uint64_t N) {
+double complex* ifft3(double complex *x,double complex* a, double complex *b,int* c, uint64_t N) {
 	if(N & (N - 1)){
 		printf("Broj nije stepen dvojke\n");
 		return NULL;
 	}
-	double complex* a = malloc(N * sizeof(double complex));
-	double complex* b = y;
+
 	double complex* temp;
 	
 	//version 3 fast bit reversal algorithm
-	int* c = malloc(sizeof(int) * N);
 	c[0] = 0;
 	c[1] = 1;
 	a[1] = x[N/2];
@@ -248,8 +245,6 @@ double complex* ifft3(double complex *x, double complex *y, uint64_t N) {
 			a[L + 2*j + 1] = x[(c[L + 2*j + 1])*r];
 		}
 	}
-	// free(c);
-	int count = 0;
 	for(int i = 1; i < N; i *= 2){
 		int k = 2 * i;
 		int N2 = N / k;	
@@ -269,4 +264,114 @@ double complex* ifft3(double complex *x, double complex *y, uint64_t N) {
 		a[i] /= N;
 	}
 	return a;
+}
+
+void fft3_spec_calc_coefs(int* c, uint64_t N){
+	// za racunanje koeficijenata za fast bit reversal
+	c[0] = 0;
+	c[1] = 1;
+	for(int L = 2; L < N; L = L << 1){
+		int r = N/(2 * L);
+		int L0 = L >> 1;
+		for(int j = 0; j <= L0; j++){
+			c[L + 2*j] = c[L0 + j];
+			c[L + 2*j + 1] = c[L0 + j] + L;	
+		}
+	}
+}
+
+
+void ifft3_spec(double complex *x, double complex *res, double complex* help, int* c,  uint32_t stepen2){
+	uint64_t N = 1 << stepen2;
+	double complex* temp;
+	
+	double complex* a = res;
+	double complex* b = help;
+
+	// da li je neparan
+	if(stepen2 & 0x01){
+		a = help;
+		b = res;
+	}
+
+	//version 3 fast bit reversal algorithm
+	// c[0] = 0;
+	// c[1] = 1;
+	// vec izracunati koeficijenti c
+	a[1] = x[N/2];
+	a[0] = x[0];
+	for(int L = 2; L < N; L = L << 1){
+		int r = N/(2 * L);
+		int L0 = L >> 1;
+		for(int j = 0; j <= L0; j++){
+			// c[L + 2*j] = c[L0 + j];
+			// c[L + 2*j + 1] = c[L0 + j] + L;
+			a[L + 2*j] = x[c[L + 2*j]*r];
+			a[L + 2*j + 1] = x[(c[L + 2*j + 1])*r];
+		}
+	}
+	for(int i = 1; i < N; i *= 2){
+		int k = 2 * i;
+		int N2 = N / k;	
+		for(int j = 0; j < N2; j++){
+			int base1 = j*k;
+			int base2 = j*k +i;
+			for(int s = 0; s < i; s++){
+				b[base1 + s] = a[base1 + s] + cexp(2*I*PI*s/k) * a[base2 + s];
+				b[base2 + s] = a[base1 + s] + cexp(2*I*PI*(s+i)/k) * a[base2 + s];
+			}
+		}
+		temp = b;
+		b = a;
+		a = temp;
+	}
+	for(int i = 0; i < N; i++){
+		res[i] /= N;
+	}
+} 
+
+void fft3_spec(double complex *x, double complex *res, double complex* help, int* c,  uint32_t stepen2){
+	uint64_t N = 1 << stepen2;
+	double complex* temp;
+	
+	double complex* a = res;
+	double complex* b = help;
+
+	// da li je neparan
+	if(stepen2 & 0x01){
+		a = help;
+		b = res;
+	}
+
+	//version 3 fast bit reversal algorithm
+	// c[0] = 0;
+	// c[1] = 1;
+	// vec izracunati koeficijenti c
+	a[1] = x[N/2];
+	a[0] = x[0];
+	for(int L = 2; L < N; L = L << 1){
+		int r = N/(2 * L);
+		int L0 = L >> 1;
+		for(int j = 0; j <= L0; j++){
+			// c[L + 2*j] = c[L0 + j];
+			// c[L + 2*j + 1] = c[L0 + j] + L;
+			a[L + 2*j] = x[c[L + 2*j]*r];
+			a[L + 2*j + 1] = x[(c[L + 2*j + 1])*r];
+		}
+	}
+	for(int i = 1; i < N; i *= 2){
+		int k = 2 * i;
+		int N2 = N / k;	
+		for(int j = 0; j < N2; j++){
+			int base1 = j*k;
+			int base2 = j*k +i;
+			for(int s = 0; s < i; s++){
+				b[base1 + s] = a[base1 + s] + cexp(-2*I*PI*s/k) * a[base2 + s];
+				b[base2 + s] = a[base1 + s] + cexp(-2*I*PI*(s+i)/k) * a[base2 + s];
+			}
+		}
+		temp = b;
+		b = a;
+		a = temp;
+	}
 }

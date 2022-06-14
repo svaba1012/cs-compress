@@ -126,7 +126,7 @@ void decompress_file(FILE* file){
 
 void proba2(){
     vcl_init();
-    FILE* file  = fopen("./test_files/sample2.wav", "rb");
+    FILE* file  = fopen("./test_files/sample5.wav", "rb");
 
     if(file == NULL){
         printf("Nista\n");

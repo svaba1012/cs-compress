@@ -13,10 +13,13 @@
 // Zatim se kvantizira amplituda i faza fft sa korakom DELTA_DB i DELTA_PHASE
 
 #define CSW_BLOCK_SIZE 65536
+#define CSW_BLOCK_POW2 16
 #define DELTA_DB 3
 #define DELTA_PHASE 0.1
 #define MAX_DIF_PHASE ((int)(6.5/DELTA_PHASE))
 #define PHASE_OFFSET ((int)(3.2/DELTA_PHASE))
+
+int min_amp_db = 0;
 
 //zaglavlje wav fajla
 struct wav_header{
@@ -76,7 +79,7 @@ bool csw_check(FILE* file){
 
 // hash funkcija za semstanje simbola amplitude
 static int csw_get_index_of_symbol_amp(HUFF_SYM simbol, struct simbol_verovatnoca_kod* simb_kod, int duzina){
-    return simbol;
+    return simbol - min_amp_db;
 }
 
 // hash funkcija za smestanje simbola faze
@@ -138,6 +141,8 @@ int csw_compress(struct cs_type* cs, FILE* file){
     double complex* data_time_domain = malloc(num_of_ch*sizeof(double complex)*CSW_BLOCK_SIZE);
     // fft ucitanog bloka
     double complex* data_freq_domain = malloc(num_of_ch*sizeof(double complex)*CSW_BLOCK_SIZE);
+    // pomocni niz za brzi fft
+    double complex* fft_help_arr = malloc(sizeof(double complex)*CSW_BLOCK_SIZE);
 
     // kvantizirane amplitude prve polovine blokova svih blokova 
     HUFF_SYM* data_freq_domain_amp_q = malloc(num_of_ch*CSW_BLOCK_SIZE * (num_of_blocks-1)*sizeof(HUFF_SYM) / 2 + 1);
@@ -145,6 +150,9 @@ int csw_compress(struct cs_type* cs, FILE* file){
     HUFF_SYM* data_freq_domain_phase_q = malloc(num_of_ch*CSW_BLOCK_SIZE * (num_of_blocks-1)*sizeof(HUFF_SYM) / 2 + 1) ;
     printf("Pripremam podatke za fft a zatim za huffman-a\n");
     
+    int* fft_coef = malloc(CSW_BLOCK_SIZE * sizeof(int));
+    fft3_spec_calc_coefs(fft_coef, CSW_BLOCK_SIZE);
+
 
     HUFF_SYM max_amp_db = 0;
 
@@ -170,7 +178,8 @@ int csw_compress(struct cs_type* cs, FILE* file){
         
         //fft bloka svih kanala
         for(int k = 0; k < num_of_ch; k++){
-            fft(data_time_domain + k * CSW_BLOCK_SIZE, data_freq_domain + k * CSW_BLOCK_SIZE, CSW_BLOCK_SIZE);    
+            fft3_spec(data_time_domain + k * CSW_BLOCK_SIZE, data_freq_domain + k * CSW_BLOCK_SIZE, fft_help_arr, fft_coef, CSW_BLOCK_POW2);
+            // fft(data_time_domain + k * CSW_BLOCK_SIZE, data_freq_domain + k * CSW_BLOCK_SIZE, CSW_BLOCK_SIZE);    
         }
 
         // kvantiziranje amplitude i faze i odsecanje druge polovine fft zbog osobine parnosti realnih delova i neparnosti imaginarnih
@@ -183,6 +192,9 @@ int csw_compress(struct cs_type* cs, FILE* file){
                 if(data_freq_domain_amp_q[base + i] > max_amp_db){
                     max_amp_db = data_freq_domain_amp_q[base+i];
                 }
+                if(data_freq_domain_amp_q[base + i] < min_amp_db){
+                    min_amp_db = data_freq_domain_amp_q[base+i];
+                }
             }
             for(int i = 0; i <= CSW_BLOCK_SIZE / 2; i++){
                 data_freq_domain_phase_q[base + i] = (HUFF_SYM)(cargl(data_freq[i + j * CSW_BLOCK_SIZE]) / DELTA_PHASE);
@@ -192,7 +204,12 @@ int csw_compress(struct cs_type* cs, FILE* file){
     free(one_block);
     free(data_time_domain);
     free(data_freq_domain);
+    free(fft_coef);
+    free(fft_help_arr);
+    max_amp_db -= min_amp_db;
     max_amp_db++;
+    printf("Max je %d\n", max_amp_db);
+    printf("Min je %d\n", min_amp_db);
 
     // Pakovanje podataka za Huffmanovo kodovanje
     symb_arr_amp->arr = data_freq_domain_amp_q;
@@ -363,6 +380,11 @@ int csw_decompress(struct cs_type* cs, FILE* file){
     short* one_block = malloc(num_of_ch*sizeof(short)*CSW_BLOCK_SIZE);
     double complex* data_time_domain = malloc(num_of_ch*sizeof(double complex)*CSW_BLOCK_SIZE);
     double complex* data_freq_domain = malloc(num_of_ch*sizeof(double complex)*CSW_BLOCK_SIZE);
+    double complex* fft_help_arr = malloc(sizeof(double complex)*CSW_BLOCK_SIZE);
+
+
+    int* fft_coef = malloc(CSW_BLOCK_SIZE * sizeof(int));
+    fft3_spec_calc_coefs(fft_coef, CSW_BLOCK_SIZE);
 
     // Kretnja po blokovima otpakivanje i ifft zatim upisivanje u fajl
     for(int block_count = 0; block_count < num_of_blocks; block_count++){
@@ -386,7 +408,10 @@ int csw_decompress(struct cs_type* cs, FILE* file){
         }
         // ifft bloka u svim kanalima
         for(int k = 0; k < num_of_ch; k++){
-            ifft(data_freq_domain + k * CSW_BLOCK_SIZE, data_time_domain + k * CSW_BLOCK_SIZE, CSW_BLOCK_SIZE);    
+            // printf("%d\n", k);
+            ifft3_spec(data_freq_domain + k * CSW_BLOCK_SIZE, data_time_domain + k * CSW_BLOCK_SIZE, fft_help_arr, fft_coef, CSW_BLOCK_POW2);
+            
+            // ifft(data_freq_domain + k * CSW_BLOCK_SIZE, data_time_domain + k * CSW_BLOCK_SIZE, CSW_BLOCK_SIZE);    
         }
 
         // Prepisivanje iz kompleksnog niza u short niz
@@ -399,14 +424,19 @@ int csw_decompress(struct cs_type* cs, FILE* file){
             }
             ++init_pos;
         }
-        
+        // printf("%d\n", num_of_blocks);
         // Upisivanje rekonstruisanog bloka 
         fwrite(one_block, 2, num_of_ch * CSW_BLOCK_SIZE, decompressed_file);
     }
-    free(one_block);
-    free(data_time_domain);
-    free(data_freq_domain);
 
+    // NEKI PROBLEM SA OSLOBADJANJEM MEMORIJE PRILIKOM KORISCENJA NOVE VERZIJE IFFT
+    // free(one_block);
+    // free(data_time_domain);
+    // free(data_freq_domain);
+    free(fft_coef);
+    free(fft_help_arr);
+
+    printf("Ima nade\n");
     fclose(decompressed_file);
     fclose(file);
 }

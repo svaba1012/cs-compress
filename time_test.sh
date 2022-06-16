@@ -1,4 +1,4 @@
-make clean
+make test_clean
 make test
 
 ./bin/program.exet

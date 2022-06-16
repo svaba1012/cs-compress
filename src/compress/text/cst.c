@@ -24,13 +24,15 @@ bool cst_check(FILE* file){
 }
 
 
-int cst_compress(struct cs_type* cs, FILE* file){
+int cst_compress(struct cs_type* cs, FILE* file, FILE* compressed_file){
     // pravi novi kompresovani fajl .cst bez gubitaka od .txt
     // odredjivanje velicine fajla
+    printf("Pocinjem kompresiju\n");
     fseek(file, 0, SEEK_END);
     int file_size = ftell(file);
     fseek(file, 0, SEEK_SET);
     // ucitavanje celog fajla
+    printf("Ucitavam podatke iz fajla\n");
     char* data = malloc(file_size);
     if(data == NULL){
         printf("Nema memorije!\n");
@@ -39,6 +41,7 @@ int cst_compress(struct cs_type* cs, FILE* file){
     fread(data, 1,  file_size, file);
 
     // prepakivanje podataka u niz odgovarajuceg tipa
+    printf("Prepakujem podatke\n");
     HUFF_SYM* data_huff = malloc(sizeof(HUFF_SYM) * file_size);
     if(data_huff == NULL){
         printf("Nema memorije!\n");
@@ -56,17 +59,17 @@ int cst_compress(struct cs_type* cs, FILE* file){
     }
     symb_arr->arr = data_huff;
     symb_arr->len = file_size;
-
+    printf("Pravim stablo i kodujem\n");
     // pravljenje huffmanovog stabla i kodovanje
     struct huff_tree* tree = huffman_get_tree(symb_arr, cs->max_possible_symbols, NULL, NULL);
     struct huff_coded_arr* compressed_data = huffman_code(tree, symb_arr);
     free(symb_arr->arr);
     free(symb_arr);
 
-    // otvaranje novog fajla za smestanje kompresovanih podataka
-    FILE* compressed_file = fopen("./compressed_file.cst", "wb");
+    
     
     // pravljenje glavnog hedera i upisivanje
+    printf("Upisivanje glavnog hedera\n");
     struct cs_header* header = malloc(sizeof(struct cs_header));
     if(header == NULL){
         printf("Nema memorije!\n");
@@ -78,6 +81,8 @@ int cst_compress(struct cs_type* cs, FILE* file){
     fwrite(header, sizeof(struct cs_header), 1, compressed_file);
     free(header);
     // pravljenje pomocnog hedera i upisivanje    
+    printf("Upisivanje pomocnog hedera\n");
+
     struct cst_additional_header* header2 = malloc(sizeof(struct cst_additional_header));
     if(header2 == NULL){
         printf("Nema memorije!\n");
@@ -89,22 +94,22 @@ int cst_compress(struct cs_type* cs, FILE* file){
     fwrite(header2, sizeof(struct cst_additional_header), 1 , compressed_file); 
     
     // upisivanje tabele verovatnoca
+    printf("Upisivanje tabele verovatnoca\n");
     fwrite(tree->simb_kod, header2->code_table_size, 1, compressed_file);
     free(header2);
     // upisivanje kodovanih podataka
     // oslobadjanje memorije huff stabala
-    free_tree(tree);
+    // free_tree(tree);
+    printf("Upisivanje podataka\n");
     fwrite(compressed_data->arr, 1, compressed_data->len, compressed_file);
     free(compressed_data->arr);
     free(compressed_data);
 
-    // zatvaranje fajlova
-    fclose(file);
-    fclose(compressed_file);
+    
 }
 
 
-int cst_decompress(struct cs_type* cs, FILE* file){
+int cst_decompress(struct cs_type* cs, FILE* file, FILE* decompressed_file){
     // dekompresuje .cst fajl u .txt fajl
     // ucitavanje hedera
     fseek(file, 0, SEEK_SET);
@@ -153,10 +158,10 @@ int cst_decompress(struct cs_type* cs, FILE* file){
     free(coded_arr);
 
     // oslobadjanje memorije huff stabala
-    free_tree(tree);
+    // free_tree(tree);
 
     // otvaranje fajla za upisi dekompresovanih podataka
-    FILE* decompressed_file = fopen("./decompressed_file.txt", "wb");
+    
     if(decompressed_file == NULL){
         printf("Nemoguce je napraviti fajl\n");
         exit(EXIT_FAILURE);
@@ -175,8 +180,7 @@ int cst_decompress(struct cs_type* cs, FILE* file){
     fwrite(text, 1, original_data->len, decompressed_file);
     free(text);
     free(original_data);
-    fclose(decompressed_file);
-    fclose(file);
+    
 }
 
 
@@ -187,6 +191,7 @@ struct cs_type cst = {
     .compress = cst_compress,
     .decompress = cst_decompress,
     .is_this_type = cst_check,
+    .name_of_program_to_open = "gedit",
     .max_possible_symbols = 256,
 };
 

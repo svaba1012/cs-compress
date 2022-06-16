@@ -11,11 +11,11 @@ FLAGS= -O2 -Wall
 TEST_FLAGS= -pg
 .PHONY = all clean
 
-all: ./bin/program.exe
+all: ./bin/csp.exe
 
 test: ./bin/program.exet
 
-./bin/program.exe: $(OBJ_FILES)
+./bin/csp.exe: $(OBJ_FILES)
 	gcc $(FLAGS) -o $@ $(OBJ_FILES) -lm
 
 ./bin/program.exet: $(OBJ_TEST_FILES)
@@ -42,9 +42,12 @@ clean:
 	rm -f ./build/*.o
 	rm -f ./bin/*.exe
 
+	
+
+test_clean: 
 	rm -f ./build/*/*/*.ot
 	rm -f ./build/*/*.ot
 	rm -f ./build/*.ot
 	rm -f ./bin/*.exet
 	rm ./gmon.out
-	rm ./time_test_info.txt
+	rm ./time_test_info.txt 

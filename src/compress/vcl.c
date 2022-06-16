@@ -53,9 +53,11 @@ int vcl_add_new_type(struct cs_type* new_type){
 void vcl_determine_type(FILE* file){
     // odredjivanje formata fajla
     // da li je podrzan za kompresiju
+    printf("Provera podtipa formata fajla\n");
     for(int i = 0; i < num_of_types; i++){
         if(ALL_CS_TYPES[i]->is_this_type != NULL && ALL_CS_TYPES[i]->is_this_type(file)){
             cur_type = ALL_CS_TYPES[i];
+            
             return;
         }
     }
@@ -79,9 +81,9 @@ void vcl_determine_compressed_type(struct cs_header* header){
     }
 }
 
-void compress_file(FILE* file){
+void compress_file(FILE* file, FILE* out_file){
     // kompresuje fajl 
-    if(file == NULL){
+    if(file == NULL || out_file == NULL){
         printf("Nepostojeci fajl\n");
         exit(EXIT_FAILURE);
     }
@@ -91,16 +93,16 @@ void compress_file(FILE* file){
         printf("Format fajla je nepodrzan za kompresiju\n");
         return;
     }
-    // spustanje na fizicki format i resavanje na tom nivou
-    cur_type->compress(cur_type, file);
     
+    // spustanje na fizicki format i resavanje na tom nivou
+    cur_type->compress(cur_type, file, out_file);
 }
 
 
 
-void decompress_file(FILE* file){
+void decompress_file(FILE* file, FILE* out_file){
     // dekompresuje fajl
-    if(file == NULL){
+    if(file == NULL || out_file == NULL){
         printf("Nepostojeci fajl\n");
         exit(EXIT_FAILURE);
     }
@@ -119,8 +121,16 @@ void decompress_file(FILE* file){
         return;
     }
     // spustanje na fizicki format i resavanje na tom nivou
-    cur_type->decompress(cur_type, file);
+    cur_type->decompress(cur_type, file, out_file);
+}
 
+void open_file(char* filename){
+    char command[200];
+    strcpy(command, cur_type->name_of_program_to_open);
+    strcat(command, " ");
+    strcat(command, filename);
+    printf("\n%s\n", command);
+    system(command);
 }
 
 
@@ -132,12 +142,12 @@ void proba2(){
         printf("Nista\n");
         exit(EXIT_FAILURE);
     }
-    printf("Pocinjem kompresiju\n");
-    compress_file(file);
-    file = fopen("./compressed_file.csw", "rb");   
-    if(file == NULL){
-        printf("Nista\n");
-        exit(EXIT_FAILURE);
-    }
-    decompress_file(file);
+    // printf("Pocinjem kompresiju\n");
+    // compress_file(file);
+    // file = fopen("./compressed_file.csw", "rb");   
+    // if(file == NULL){
+    //     printf("Nista\n");
+    //     exit(EXIT_FAILURE);
+    // }
+    // decompress_file(file);
 }

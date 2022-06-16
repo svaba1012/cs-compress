@@ -1,2 +1,2 @@
 
-./bin/program.exe
+./bin/csp.exe

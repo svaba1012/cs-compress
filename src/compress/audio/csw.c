@@ -89,7 +89,7 @@ static int csw_get_index_of_symbol_phase(HUFF_SYM simbol, struct simbol_verovatn
 }
 
 
-int csw_compress(struct cs_type* cs, FILE* file){
+int csw_compress(struct cs_type* cs, FILE* file, FILE* compressed_file){
     // kompresovanje podataka iz wav fajla i pravljenje novog compresovanog csw formata
     printf("Pripremam podatke\n");
     fseek(file, 0, SEEK_SET);
@@ -234,7 +234,6 @@ int csw_compress(struct cs_type* cs, FILE* file){
 
     // pravljenje fajla za dekompresovanje
     printf("Pravim fajl i upisujem\n");
-    FILE* compressed_file = fopen("./compressed_file.csw", "wb");
     
     // Cuvanje primarnog hedera
     vcl_cs_header_init(header, cs);
@@ -277,11 +276,10 @@ int csw_compress(struct cs_type* cs, FILE* file){
     free(compressed_phase);
     printf("Fajl je gotov, cuvam ga\n");
     // Zatvaranje fajla
-    fclose(file);
-    fclose(compressed_file);
+    
 }
 
-int csw_decompress(struct cs_type* cs, FILE* file){
+int csw_decompress(struct cs_type* cs, FILE* file, FILE* decompressed_file){
     // Dekompresovanje podataka iz csw format i formiranje wav formata
     printf("Pocinjem dekompresovanje\n");
     fseek(file, 0, SEEK_SET);
@@ -366,7 +364,6 @@ int csw_decompress(struct cs_type* cs, FILE* file){
     // free_tree(tree_amp);
     // !!!
     // Otvaranje novog fajla za dekompresovanu verziju wav
-    FILE* decompressed_file = fopen("./decompressed_file.wav", "wb");
     if(decompressed_file == NULL){
         printf("Nemoguce je napraviti fajl\n");
         exit(EXIT_FAILURE);
@@ -385,7 +382,7 @@ int csw_decompress(struct cs_type* cs, FILE* file){
 
     int* fft_coef = malloc(CSW_BLOCK_SIZE * sizeof(int));
     fft3_spec_calc_coefs(fft_coef, CSW_BLOCK_SIZE);
-
+    printf("Ifft blokova pa cuvanje\n");
     // Kretnja po blokovima otpakivanje i ifft zatim upisivanje u fajl
     for(int block_count = 0; block_count < num_of_blocks; block_count++){
         // Rekonstrucija frekvencijskog domena iz amplitude i faze 
@@ -424,21 +421,18 @@ int csw_decompress(struct cs_type* cs, FILE* file){
             }
             ++init_pos;
         }
-        // printf("%d\n", num_of_blocks);
         // Upisivanje rekonstruisanog bloka 
         fwrite(one_block, 2, num_of_ch * CSW_BLOCK_SIZE, decompressed_file);
+        // printf("%d\n", block_count);
     }
-
+    printf("Kraj dekompresije\n");
     // NEKI PROBLEM SA OSLOBADJANJEM MEMORIJE PRILIKOM KORISCENJA NOVE VERZIJE IFFT
     // free(one_block);
     // free(data_time_domain);
     // free(data_freq_domain);
     free(fft_coef);
     free(fft_help_arr);
-
-    printf("Ima nade\n");
-    fclose(decompressed_file);
-    fclose(file);
+    
 }
 
 
@@ -448,7 +442,7 @@ struct cs_type csw = {
     .compress = csw_compress,
     .decompress = csw_decompress,
     .is_this_type = csw_check,
-    
+    .name_of_program_to_open = "celluloid",
     .max_possible_symbols = 300,
 };
 

@@ -148,7 +148,7 @@ int csw_compress(struct cs_type* cs, FILE* file, FILE* compressed_file){
     HUFF_SYM* data_freq_domain_amp_q = malloc(num_of_ch*CSW_BLOCK_SIZE * (num_of_blocks-1)*sizeof(HUFF_SYM) / 2 + 1);
     // kvantizirane faze prve polovine blokova svih blokova
     HUFF_SYM* data_freq_domain_phase_q = malloc(num_of_ch*CSW_BLOCK_SIZE * (num_of_blocks-1)*sizeof(HUFF_SYM) / 2 + 1) ;
-    printf("Pripremam podatke za fft a zatim za huffman-a\n");
+    printf("Pripremam podatke za fft a zatim za huffman-a, moze da potraje...\n");
     
     int* fft_coef = malloc(CSW_BLOCK_SIZE * sizeof(int));
     fft3_spec_calc_coefs(fft_coef, CSW_BLOCK_SIZE);
@@ -208,8 +208,8 @@ int csw_compress(struct cs_type* cs, FILE* file, FILE* compressed_file){
     free(fft_help_arr);
     max_amp_db -= min_amp_db;
     max_amp_db++;
-    printf("Max je %d\n", max_amp_db);
-    printf("Min je %d\n", min_amp_db);
+    // printf("Max je %d\n", max_amp_db);
+    // printf("Min je %d\n", min_amp_db);
 
     // Pakovanje podataka za Huffmanovo kodovanje
     symb_arr_amp->arr = data_freq_domain_amp_q;
@@ -249,7 +249,7 @@ int csw_compress(struct cs_type* cs, FILE* file, FILE* compressed_file){
     header2->last_end_bit2 = compressed_phase ->last_end_bit;
     header2->original_size1 = compressed_amp->original_len;
     header2->original_size2 = compressed_phase->original_len;
-    printf("\n%d\n", compressed_phase->original_len);
+    // printf("\n%d\n", compressed_phase->original_len);
     header2->data_size1 = compressed_amp->len;
     header2->data_size2 = compressed_phase->len;
     header2->orig_header = *wav_header;
@@ -382,7 +382,7 @@ int csw_decompress(struct cs_type* cs, FILE* file, FILE* decompressed_file){
 
     int* fft_coef = malloc(CSW_BLOCK_SIZE * sizeof(int));
     fft3_spec_calc_coefs(fft_coef, CSW_BLOCK_SIZE);
-    printf("Ifft blokova pa cuvanje\n");
+    printf("Ifft blokova pa cuvanje, moze da potraje...\n");
     // Kretnja po blokovima otpakivanje i ifft zatim upisivanje u fajl
     for(int block_count = 0; block_count < num_of_blocks; block_count++){
         // Rekonstrucija frekvencijskog domena iz amplitude i faze 

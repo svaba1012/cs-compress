@@ -66,6 +66,7 @@ void vcl_determine_type(FILE* file){
 void vcl_determine_compressed_type(struct cs_header* header){
     // odredjivanje da li je cs format 
     // provera glavnog hedera
+    
     if(strncmp(header->magic1, "CS26", 4) != 0 || strncmp(header->magic2, "CS11", 4) != 0){
         cur_type = NULL;
         return;
@@ -135,19 +136,21 @@ void open_file(char* filename){
 
 
 void proba2(){
-    vcl_init();
+    
     FILE* file  = fopen("./test_files/sample5.wav", "rb");
-
+    FILE* file_out  = fopen("./proba21.cs", "wb");
     if(file == NULL){
         printf("Nista\n");
         exit(EXIT_FAILURE);
     }
-    // printf("Pocinjem kompresiju\n");
-    // compress_file(file);
-    // file = fopen("./compressed_file.csw", "rb");   
-    // if(file == NULL){
-    //     printf("Nista\n");
-    //     exit(EXIT_FAILURE);
-    // }
-    // decompress_file(file);
+    printf("Pocinjem kompresiju\n");
+    compress_file(file, file_out);
+    fclose(file);
+    fclose(file_out);
+    
+    FILE* file_in  = fopen("./proba21.cs", "rb");
+    FILE* file_reconstructed = fopen("./proba21_rec.wav", "wb");
+    decompress_file(file_out, file_reconstructed);
+    fclose(file_in);
+    fclose(file_reconstructed);
 }

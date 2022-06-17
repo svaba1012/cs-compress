@@ -15,7 +15,7 @@ int main(int argc, char* argv[]){
     printf("----------------CSP-cs program za manipulaciju cs kompresovanim formatima----------\n\n");
     if(argc < 2){
         printf("Unesite \"csp -h\" za  ispis opcija programa\n");
-        // proba2();
+        proba2();
     }else if (argc == 2){
         if(strcmp(argv[1], "-h") == 0){
             printf("Postojece opcije:\n-h{opcija za pomoc}\n-c{za kompresovanje fajla, naredni string uzima kao ulazni fajl za kompajlovanje}\n-d{za dekompresovanje fajla, naredni string uzima kao ulazni fajl za dekompajlovanje}\n-o{opciono ovim se dodaje zeljeni naziv izlaznog fajla}\n-p{opcija za otvaranje kompresovanih formata cs, ne moze se koristiti opciona opcija -o uz ovu}\n\n");

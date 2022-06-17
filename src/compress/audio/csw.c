@@ -263,8 +263,8 @@ int csw_compress(struct cs_type* cs, FILE* file, FILE* compressed_file){
     fwrite(tree_phase->simb_kod, sizeof(struct simbol_verovatnoca_kod), MAX_DIF_PHASE, compressed_file);
     // oslobadjanje memorije huff stabala
     // !!!
-    // free_tree(tree_amp);
-    // free_tree(tree_phase);
+    free_tree(tree_amp);
+    free_tree(tree_phase);
     // !!!
     // Cuvanje kompresovanih podataka i oslobadjanje memorije istih
     printf("Upisujem podatke\n");
@@ -360,8 +360,8 @@ int csw_decompress(struct cs_type* cs, FILE* file, FILE* decompressed_file){
     printf("Pravljnje fajla za dekompresovane podatke\n");
     // oslobadjanje memorije huff stabala
     // !!!
-    // free_tree(tree_phase);
-    // free_tree(tree_amp);
+    free_tree(tree_phase);
+    free_tree(tree_amp);
     // !!!
     // Otvaranje novog fajla za dekompresovanu verziju wav
     if(decompressed_file == NULL){

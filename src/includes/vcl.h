@@ -45,6 +45,7 @@ void vcl_cs_header_init(struct cs_header* header, struct cs_type* cs);
 void compress_file(FILE* file, FILE* out_file);
 void decompress_file(FILE* file, FILE* out_file);
 void open_file(char* filename);
+// koriscena funkcija za testiranje brzine
 void proba2();
 
 #endif

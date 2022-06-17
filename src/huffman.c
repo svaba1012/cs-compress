@@ -307,6 +307,9 @@ struct huff_symb_arr* huffman_decode(struct huff_tree* tree, struct huff_coded_a
 
 static void postorder_recursive_free(struct cvor_stabla* cvor){
     // brisanje cvorova stabla postorder obilaskom
+    if(cvor == NULL){
+        return;
+    }
     postorder_recursive_free(cvor->levi);
     postorder_recursive_free(cvor->desni);
     free(cvor);

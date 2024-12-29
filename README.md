@@ -34,15 +34,15 @@ Available options:
 Usage examples:
 
 1. Compressing
-   1. csp -c {FILE_NAME}
-   2. csp -c {FILE_NAME} -o {OUTPUT_FILE_NAME}
+   1. `csp -c {FILE_NAME}`
+   2. `csp -c {FILE_NAME} -o {OUTPUT_FILE_NAME}`
 2. Decompression
-   1. csp -d {FILE_NAME}
-   2. csp -d {FILE_NAME} -o {OUTPUT_FILE_NAME}
+   1. `csp -d {FILE_NAME}`
+   2. `csp -d {FILE_NAME} -o {OUTPUT_FILE_NAME}`
 3. Opening the compressed file
-   csp -p {FILE_NAME}
+   1. `csp -p {FILE_NAME}`
 4. Help
-   csp - h
+   1. `csp - h`
 
 \*\*\* There are certain bugs:
 

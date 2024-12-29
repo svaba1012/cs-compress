@@ -115,12 +115,12 @@ static struct simbol_verovatnoca_kod* huffman_calc_verovatnoce(struct huff_symb_
         exit(EXIT_FAILURE);
     }
     memset(simb_vero, 0, sizeof(struct simbol_verovatnoca_kod)* *max_symb);
-    
+    //  printf("Tree 111\n");
     // iteracija kroz niz i brojanje broj pojavljivanja simbola
     for(int i = 0; i < symb_arr->len; i++){
         // pretraga u tabeli da li se simbol vec pojavljivao
         int idx = get_index(arr[i], simb_vero, *max_symb);
-        
+        //  printf("Tree123 %d od %d\n", i, symb_arr->len);
         if(idx >= 0){
             // ako jeste
             simb_vero[idx].simbol = arr[i];
@@ -146,6 +146,7 @@ struct huff_tree* huffman_get_tree(struct huff_symb_arr* symb_arr,int max_symb, 
         // ako verovatnoce ne postoje izracunaj
         verovatnoce = huffman_calc_verovatnoce(symb_arr, &max_symb, get_index);
     }
+
     // napravi stablo
     struct huff_tree* tree = huffman_napravi_stablo(verovatnoce, max_symb);
     tree->get_index = get_index;

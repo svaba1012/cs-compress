@@ -350,16 +350,23 @@ void fft3_spec(double complex *x, double complex *res, double complex* help, int
 	a[1] = x[N/2];
 	a[0] = x[0];
 	for(int L = 2; L < N; L = L << 1){
+		// printf("fft %d %d\n", L, N);
 		int r = N/(2 * L);
 		int L0 = L >> 1;
 		for(int j = 0; j <= L0; j++){
+			// printf("fft inner %d %d\n", j, L0);
+			
 			// c[L + 2*j] = c[L0 + j];
 			// c[L + 2*j + 1] = c[L0 + j] + L;
 			a[L + 2*j] = x[c[L + 2*j]*r];
+			// printf("fft inner; %d %d\n", j, L0);
 			a[L + 2*j + 1] = x[(c[L + 2*j + 1])*r];
+			// printf("fft inner: %d %d\n", j, L0);
 		}
+		// printf("fft done %d %d\n", L, N);
 	}
 	for(int i = 1; i < N; i *= 2){
+		// printf("ffttt %d %d \n", i, N);
 		int k = 2 * i;
 		int N2 = N / k;	
 		for(int j = 0; j < N2; j++){

@@ -4,6 +4,7 @@
 #include "complex.h"
 #include "fft.h"
 #include <math.h>
+#include <stdio.h>
 
 // kompresovani format audio wav fajla sa gubicima
 // Ogranicenje je fft koriscen od druga sa etf-a skinut sa github-a
@@ -14,10 +15,21 @@
 
 #define CSW_BLOCK_SIZE 65536
 #define CSW_BLOCK_POW2 16
-#define DELTA_DB 3
+// #define DELTA_DB 3
 #define DELTA_PHASE 0.1
+#define DELTA_DB 10
+// #define DELTA_PHASE 1
+
 #define MAX_DIF_PHASE ((int)(6.5/DELTA_PHASE))
 #define PHASE_OFFSET ((int)(3.2/DELTA_PHASE))
+
+#define AUDIO_PLAYER_CMD "error"
+#ifdef _WIN32
+#define AUDIO_PLAYER_CMD "start"
+#endif
+#ifdef __linux__
+#define AUDIO_PLAYER_CMD "celluloid"
+#endif
 
 int min_amp_db = 0;
 
@@ -134,6 +146,7 @@ int csw_compress(struct cs_type* cs, FILE* file, FILE* compressed_file){
     int data_size = wav_header->chunk_size - (sizeof(struct wav_header) - 8);
     int data_len = data_size / 2;
     int num_of_ch = wav_header->num_channels;
+
     int num_of_blocks = data_len / CSW_BLOCK_SIZE / num_of_ch;
     // prostor za ucitavanje jednog bloka
     short* one_block = malloc(num_of_ch*sizeof(short)*CSW_BLOCK_SIZE);
@@ -155,13 +168,13 @@ int csw_compress(struct cs_type* cs, FILE* file, FILE* compressed_file){
 
 
     HUFF_SYM max_amp_db = 0;
-
     // iteracija po blokovima
     // POSLEDNJI BLOK SE ZA SAD ODSECA
     for(int block_count = 0; block_count < num_of_blocks-1; block_count++){
         // !!! POSLEDNJI BLOK POSEBNA OBRADA ili ZANEMARITI!!!
         //! provera
         // ucitavanje blok po blok
+        // printf("Start %d of %d\n", block_count, num_of_blocks - 1);
         fread(one_block, sizeof(short), num_of_ch * CSW_BLOCK_SIZE, file);
         //prepisivanje podataka u kompleksni niz zbog fft
         for(int k = 0, init_pos = 0; k < num_of_ch; k++){
@@ -175,20 +188,24 @@ int csw_compress(struct cs_type* cs, FILE* file, FILE* compressed_file){
             ++init_pos;
         }
 
-        
         //fft bloka svih kanala
-        for(int k = 0; k < num_of_ch; k++){
+         
+
+        //! VRATI BROJ KANALA , BEZ -1
+        for(int k = 0; k < num_of_ch - 1; k++){
             fft3_spec(data_time_domain + k * CSW_BLOCK_SIZE, data_freq_domain + k * CSW_BLOCK_SIZE, fft_help_arr, fft_coef, CSW_BLOCK_POW2);
             // fft(data_time_domain + k * CSW_BLOCK_SIZE, data_freq_domain + k * CSW_BLOCK_SIZE, CSW_BLOCK_SIZE);    
         }
-
+        //  printf("Passing %d of %d\n", block_count, num_of_blocks);
         // kvantiziranje amplitude i faze i odsecanje druge polovine fft zbog osobine parnosti realnih delova i neparnosti imaginarnih
         double complex* data_freq = data_freq_domain;
         for(int j = 0; j < num_of_ch; j++){
             int base = block_count * CSW_BLOCK_SIZE * num_of_ch / 2 + j * CSW_BLOCK_SIZE / 2;
             for(int i = 0; i <= CSW_BLOCK_SIZE / 2; i++){
                 double temp = cabsl(data_freq[i + j * CSW_BLOCK_SIZE]);
-                data_freq_domain_amp_q[base + i] =(HUFF_SYM) (20*log10l(temp) / DELTA_DB);
+                
+                data_freq_domain_amp_q[base + i] =(HUFF_SYM) (20*log10l(temp + 1) / DELTA_DB);
+                
                 if(data_freq_domain_amp_q[base + i] > max_amp_db){
                     max_amp_db = data_freq_domain_amp_q[base+i];
                 }
@@ -201,11 +218,13 @@ int csw_compress(struct cs_type* cs, FILE* file, FILE* compressed_file){
             }
         }
     }
+    // printf("Passing last block\n");
     free(one_block);
     free(data_time_domain);
     free(data_freq_domain);
     free(fft_coef);
     free(fft_help_arr);
+    // printf("Max je %d\n", max_amp_db);
     max_amp_db -= min_amp_db;
     max_amp_db++;
     // printf("Max je %d\n", max_amp_db);
@@ -217,9 +236,12 @@ int csw_compress(struct cs_type* cs, FILE* file, FILE* compressed_file){
     symb_arr_phase->arr = data_freq_domain_phase_q;
     symb_arr_phase->len = num_of_ch * CSW_BLOCK_SIZE * (num_of_blocks - 1)/2+1;
 
+
     // Kodovanje amplitude
     struct huff_tree* tree_amp = huffman_get_tree(symb_arr_amp, cs->max_possible_symbols, csw_get_index_of_symbol_amp, NULL);
+
     struct huff_coded_arr* compressed_amp = huffman_code(tree_amp, symb_arr_amp);
+
     // Oslobadjanje originalnih podataka amplitude
     free(symb_arr_amp->arr);
     free(symb_arr_amp);
@@ -392,7 +414,7 @@ int csw_decompress(struct cs_type* cs, FILE* file, FILE* decompressed_file){
             int base = block_count * CSW_BLOCK_SIZE * num_of_ch / 2 + j * (CSW_BLOCK_SIZE / 2);
             // Nulti clan nema parnja pa je izdvoje van petlje
             double angle = ((double)symb_arr_phase->arr[base]) * DELTA_PHASE;
-            double amp = powl(10,((double)symb_arr_amp->arr[base]) * DELTA_DB / 20);
+            double amp = powl(10,((double)symb_arr_amp->arr[base]) * DELTA_DB / 20) - 1;
             data_freq_domain[j*CSW_BLOCK_SIZE] = amp * (cos(angle) + I * sin(angle));
             // Osobina simetrije i antisimetrije oko srednje clana
             for(int i = 1; i <= CSW_BLOCK_SIZE / 2; i++){
@@ -404,7 +426,8 @@ int csw_decompress(struct cs_type* cs, FILE* file, FILE* decompressed_file){
             }
         }
         // ifft bloka u svim kanalima
-        for(int k = 0; k < num_of_ch; k++){
+        //! VRATI BROJ KANALA , BEZ -1
+        for(int k = 0; k < num_of_ch - 1; k++){
             // printf("%d\n", k);
             ifft3_spec(data_freq_domain + k * CSW_BLOCK_SIZE, data_time_domain + k * CSW_BLOCK_SIZE, fft_help_arr, fft_coef, CSW_BLOCK_POW2);
             
@@ -442,7 +465,7 @@ struct cs_type csw = {
     .compress = csw_compress,
     .decompress = csw_decompress,
     .is_this_type = csw_check,
-    .name_of_program_to_open = "celluloid",
+    .name_of_program_to_open = AUDIO_PLAYER_CMD,
     .max_possible_symbols = 300,
 };
 

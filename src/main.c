@@ -45,9 +45,10 @@ int main(int argc, char* argv[]){
             }
             if(strcmp(argv[1], "-p") == 0){
                 decompress_file(file_in, file_out);
+                fclose(file_out);
                 open_file(file_out_name);
-                printf("Proba\n");
-                remove(file_out_name);
+                // printf("Proba");
+                // remove(file_out_name);
             }else if(strcmp(argv[1], "-c") == 0){
                 compress_file(file_in, file_out);
             }else if(strcmp(argv[1], "-d") == 0){
